@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Wall Panel",
+        "description": "Adds a full-screen wall-tablet dashboard to the sidebar. Its tabs are this house's floors plus Tasks and Security; a device appears on its room's floor unless a \"Wall: ...\" label on it says otherwise. The tablet can also open it on its own at /wall_panel/index.html.",
+        "data": {
+          "title": "Sidebar title"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Wall Panel is already set up."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Wall Panel",
+        "data": {
+          "title": "Sidebar title"
+        }
+      }
+    }
+  }
+}

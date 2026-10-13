@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+app/node_modules/
+app/dist/
+app/.env*.local
+app/*.tsbuildinfo
+scripts/preview_*.png
+scripts/preview.html
