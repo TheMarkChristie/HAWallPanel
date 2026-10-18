@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
@@ -21,10 +23,25 @@ function onlyHouseholdLocales(): Plugin {
   };
 }
 
-// base "./": the built page is served by the integration from /wall_panel/, so every asset path stays relative
+const stub = (file: string) => fileURLToPath(new URL(`./src/stubs/${file}`, import.meta.url));
+const version = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version as string;
+
+// base "./": the built page is served by the integration from /wall_panel/, so every asset path stays relative.
+// The kit's shared chunk imports leaflet and react-leaflet (its map card), autolinker (its calendar card) and the whole of
+// CommonJS lodash at module level; the wall uses neither card, so those are stand-ins and lodash is the ES build, which
+// leaves only what is used (about a quarter of the main chunk less).
 export default defineConfig({
   base: "./",
   plugins: [onlyHouseholdLocales(), react({ jsxImportSource: "@emotion/react" })],
+  resolve: {
+    alias: [
+      { find: /^leaflet$/, replacement: stub("leaflet.ts") },
+      { find: /^react-leaflet$/, replacement: stub("react-leaflet.tsx") },
+      { find: /^autolinker$/, replacement: stub("autolinker.ts") },
+      { find: /^lodash$/, replacement: "lodash-es" },
+    ],
+  },
+  define: { __WALL_VERSION__: JSON.stringify(version) },
   build: { outDir: "dist", emptyOutDir: true, chunkSizeWarningLimit: 4000, sourcemap: false },
   server: { port: 5199 },
 });

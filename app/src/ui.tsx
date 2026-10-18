@@ -1,14 +1,17 @@
-/* Shared look: the glass panels, the round buttons and the colours, in one place. */
+/* Shared look: the glass panels, the round buttons and the colours, in one place; the sheets and the short notes that
+ * say an action did not work. */
 import { css } from "@emotion/react";
 import { Icon } from "@iconify/react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { create } from "zustand";
+import { t } from "./i18n.ts";
 
 export const colours = {
   page: "#0b1020",
   text: "#eef1fb",
-  muted: "rgba(238, 241, 251, 0.62)",
-  faint: "rgba(238, 241, 251, 0.38)",
+  muted: "rgba(238, 241, 251, 0.62)",     // all small text: 6.3:1 on a tile
+  faint: "rgba(238, 241, 251, 0.38)",     // decorative icons only (about 3:1), never text
   glass: "rgba(255, 255, 255, 0.045)",
   glassHi: "rgba(255, 255, 255, 0.08)",
   edge: "rgba(255, 255, 255, 0.09)",
@@ -144,32 +147,80 @@ export function iconFor(domain: string, deviceClass?: unknown, on?: boolean): st
   }
 }
 
-/** A centred sheet over the wall (rooms, Edit, confirmations): Escape or a tap outside closes it. */
+let openSheets = 0;
+
+/** A centred sheet over the wall (rooms, Edit, confirmations): Escape or a tap outside closes it. While it is open the
+ *  page behind is inert, focus starts on its first control (or the one marked data-autofocus) and goes back to what
+ *  opened it afterwards. */
 export function Sheet({ open, title, onClose, children, width = 1100 }: {
   open: boolean; title?: ReactNode; onClose: () => void; children?: ReactNode; width?: number;
 }) {
+  const panel = useRef<HTMLDivElement>(null);
+  const close = useRef(onClose);
+  close.current = onClose;
   useEffect(() => {
     if (!open) return;
-    const key = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    const opener = document.activeElement as HTMLElement | null;
+    const root = document.getElementById("root");
+    if (openSheets++ === 0) root?.setAttribute("inert", "");
+    const frame = requestAnimationFrame(() => {
+      const box = panel.current;
+      const first = box?.querySelector<HTMLElement>("[data-autofocus]")
+        ?? box?.querySelector<HTMLElement>("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])");
+      first?.focus();
+    });
+    const key = (e: KeyboardEvent) => { if (e.key === "Escape") close.current(); };
     window.addEventListener("keydown", key);
-    return () => window.removeEventListener("keydown", key);
-  }, [open, onClose]);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", key);
+      if (--openSheets === 0) root?.removeAttribute("inert");
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [open]);
   if (!open) return null;
   return createPortal(
-    <div role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined} onClick={onClose} css={css`
+    <div role="dialog" aria-modal="true" aria-label={typeof title === "string" ? title : undefined} onClick={() => close.current()} css={css`
       position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 3vh 3vw;
       background: rgba(5, 8, 20, 0.55); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);`}>
-      <div onClick={(e) => e.stopPropagation()} css={css`
+      <div ref={panel} onClick={(e) => e.stopPropagation()} css={css`
         width: min(${width}px, 94vw); max-height: 94vh; display: flex; flex-direction: column; border-radius: 24px;
         background: #151a30; border: 1px solid ${colours.edge}; box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5); color: ${colours.text};`}>
         <header css={css`display: flex; align-items: center; gap: 12px; padding: 18px 22px 8px;`}>
           <div css={css`flex: 1; font-size: 22px; font-weight: 750;`}>{title}</div>
-          <button onClick={onClose} aria-label="Close" css={[roundIcon(44), css`border: 1px solid ${colours.edge}; cursor: pointer;`]}>
+          <button onClick={() => close.current()} aria-label={t().close} css={[roundIcon(44), css`border: 1px solid ${colours.edge}; cursor: pointer;`]}>
             <Icon icon="mdi:close" width={24} />
           </button>
         </header>
         <div css={css`padding: 8px 22px 22px; overflow: auto;`}>{children}</div>
       </div>
+    </div>,
+    document.body,
+  );
+}
+
+/* ---- notes: an action that did not work says so for a few seconds -------------------------------------------------- */
+
+interface Note { id: number; text: string }
+const notes = create<{ list: Note[] }>(() => ({ list: [] }));
+let noteId = 0;
+
+/** Say something went wrong (a tap whose service call failed); it goes after six seconds. */
+export function notify(text: string) {
+  const id = ++noteId;
+  notes.setState((s) => ({ list: [...s.list.slice(-2), { id, text }] }));
+  setTimeout(() => notes.setState((s) => ({ list: s.list.filter((n) => n.id !== id) })), 6000);
+}
+
+export function Notes() {
+  const list = notes((s) => s.list);
+  return createPortal(
+    <div role="alert" aria-live="assertive" css={css`position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 80;
+      display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none;`}>
+      {list.map((n) => (
+        <div key={n.id} css={css`padding: 12px 18px; border-radius: 14px; background: #3a1f2a; border: 1px solid ${colours.bad};
+          color: ${colours.text}; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4); max-width: min(90vw, 640px);`}>{n.text}</div>
+      ))}
     </div>,
     document.body,
   );

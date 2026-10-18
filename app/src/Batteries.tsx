@@ -3,6 +3,7 @@ import { css } from "@emotion/react";
 import { useLowDevices } from "@hakit/core";
 import { colours, Panel } from "./ui.tsx";
 import { decodeEntities, type DeviceLite, type EntityRegLite } from "./model.ts";
+import { t } from "./i18n.ts";
 
 export const LOW_BATTERY = 25;
 
@@ -16,12 +17,12 @@ export function Batteries({ areaIds, entities, devices }: {
     return !!area && areaIds.has(area);
   });
   if (!mine.length) {
-    return <Panel icon="mdi:battery-check" title="Batteries" sub={`All above ${LOW_BATTERY}%`} />;
+    return <Panel icon="mdi:battery-check" title={t().batteries} sub={t().allAbove(LOW_BATTERY)} />;
   }
   const values = mine.map((st) => Number(st.state)).filter((n) => !Number.isNaN(n));
   const avg = values.length ? Math.round(values.reduce((a, b) => a + b, 0) / values.length) : 0;
   return (
-    <Panel icon="mdi:battery-alert-variant-outline" tone={colours.bad} title="Batteries" sub={`${mine.length} low · average ${avg}%`}>
+    <Panel icon="mdi:battery-alert-variant-outline" tone={colours.bad} title={t().batteries} sub={t().lowAverage(mine.length, avg)}>
       {mine.map((st) => {
         const reg = entities[st.entity_id];
         const device = reg?.device_id ? devices[reg.device_id] : undefined;

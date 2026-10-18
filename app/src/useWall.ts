@@ -1,9 +1,9 @@
 /* The live wall: Home Assistant's registries and states from the kit's store, the label registry fetched here, turned
  * into tabs and placed devices by model.ts; plus the one write the wall makes, moving a device to another tab. */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useHass } from "@hakit/core";
 import {
-  buildTabs, place, tabOfLabel, relabel, labelNameFor, HIDDEN, LABEL_PREFIX,
+  buildTabs, place, pickWeather, shownKey, tabOfLabel, relabel, labelNameFor, HIDDEN, LABEL_PREFIX,
   type AreaLite, type DeviceLite, type EntityRegLite, type FloorLite, type LabelLite, type Placed, type StateLite, type Tab,
 } from "./model.ts";
 
@@ -15,6 +15,7 @@ export interface Wall {
   entities: Record<string, EntityRegLite>;
   states: Record<string, StateLite>;
   labels: Record<string, LabelLite>;
+  weather: string | undefined;
   isAdmin: boolean;
   /** Put a device on a tab (a tab key or HIDDEN), or back to automatic (null): writes "Wall: ..." labels. Admin only. */
   assign: (item: Placed, target: string | null) => Promise<void>;
@@ -51,9 +52,19 @@ export function useWall(): Wall {
   }, [connection, loadLabels]);
 
   const tabs = useMemo(() => buildTabs(Object.values(floors ?? {})), [floors]);
+  // where devices live is worked out again when a registry changes or an entity comes, goes or is renamed, not on
+  // every state change in the house (a light switching does not move it)
+  const statesNow = useRef(states);
+  statesNow.current = states;
+  const key = useMemo(() => shownKey(entities ?? {}, states ?? {}), [entities, states]);
   const placed = useMemo(
-    () => place({ tabs, areas: areas ?? {}, devices: devices ?? {}, entities: entities ?? {}, states: states ?? {}, labels }),
-    [tabs, areas, devices, entities, states, labels],
+    () => place({ tabs, areas: areas ?? {}, devices: devices ?? {}, entities: entities ?? {}, states: statesNow.current ?? {}, labels }),
+    [tabs, areas, devices, entities, labels, key],
+  );
+  const weatherIds = useMemo(() => Object.keys(states ?? {}).filter((id) => id.startsWith("weather.")).sort().join(","), [states]);
+  const weather = useMemo(
+    () => pickWeather(statesNow.current ?? {}, entities ?? {}, areas ?? {}, labels, devices ?? {}),
+    [weatherIds, entities, areas, labels, devices],
   );
 
   const assign = useCallback(async (item: Placed, target: string | null) => {
@@ -97,7 +108,7 @@ export function useWall(): Wall {
   }, [connection, labels, tabs, devices, entities, loadLabels]);
 
   return {
-    tabs, placed, labels, assign,
+    tabs, placed, labels, assign, weather,
     areas: areas ?? {}, devices: devices ?? {}, entities: entities ?? {}, states: states ?? {},
     isAdmin: Boolean((user as { is_admin?: boolean } | null)?.is_admin),
   };

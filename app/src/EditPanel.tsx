@@ -4,20 +4,13 @@
 import { useMemo, useState } from "react";
 import { css } from "@emotion/react";
 import { colours, buttonFont, Sheet } from "./ui.tsx";
-import { HIDDEN, type Placed, type Why } from "./model.ts";
+import { HIDDEN, type Placed } from "./model.ts";
+import { t, tabTitle } from "./i18n.ts";
 import type { Wall } from "./useWall.ts";
-
-const WHY: Record<Why, string> = {
-  label: "set by a Wall label",
-  type: "Security by type",
-  floor: "by its room's floor",
-  "no-room": "no room in this house",
-  "no-floor": "its room has no floor",
-  hidden: "hidden by a Wall label",
-};
 
 
 export function EditPanel({ wall, open, onClose }: { wall: Wall; open: boolean; onClose: () => void }) {
+  const words = t();
   const [filter, setFilter] = useState("");
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,8 +19,8 @@ export function EditPanel({ wall, open, onClose }: { wall: Wall; open: boolean; 
     return wall.placed.filter((p) => !f || p.name.toLowerCase().includes(f) || (p.areaId && wall.areas[p.areaId]?.name.toLowerCase().includes(f)));
   }, [wall.placed, wall.areas, filter]);
   const groups: [string, Placed[]][] = [
-    ...wall.tabs.map((t) => [t.title, rows.filter((p) => p.tab === t.key)] as [string, Placed[]]),
-    ["Not on the wall", rows.filter((p) => p.tab === null)],
+    ...wall.tabs.map((x) => [tabTitle(x), rows.filter((p) => p.tab === x.key)] as [string, Placed[]]),
+    [words.notOnWall, rows.filter((p) => p.tab === null)],
   ];
   const current = (p: Placed) => (p.why === "label" ? p.tab ?? "" : p.why === "hidden" ? HIDDEN : "");
   const choose = async (p: Placed, value: string) => {
@@ -42,12 +35,9 @@ export function EditPanel({ wall, open, onClose }: { wall: Wall; open: boolean; 
     }
   };
   return (
-    <Sheet open={open} onClose={onClose} title="Where each device lives" width={860}>
-      <p css={css`margin: 0 0 12px; color: ${colours.muted}; font-size: 14px; line-height: 1.45;`}>
-        Automatic follows the room's floor; locks, doors and cameras go to Security. A choice here is saved as a "Wall:" label on the
-        device in Home Assistant, where it can be changed too.
-      </p>
-      <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Find a device or room" aria-label="Find a device or room"
+    <Sheet open={open} onClose={onClose} title={words.editTitle} width={860}>
+      <p css={css`margin: 0 0 12px; color: ${colours.muted}; font-size: 14px; line-height: 1.45;`}>{words.editIntro}</p>
+      <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={words.find} aria-label={words.find}
         css={css`width: 100%; ${buttonFont}; padding: 10px 12px; border-radius: 12px; margin-bottom: 8px; color: ${colours.text};
           border: 1px solid ${colours.edge}; background: rgba(0, 0, 0, 0.2);`} />
       {error && <div role="alert" css={css`color: ${colours.bad}; margin: 6px 0;`}>{error}</div>}
@@ -60,15 +50,15 @@ export function EditPanel({ wall, open, onClose }: { wall: Wall; open: boolean; 
               <div css={css`min-width: 0;`}>
                 <div css={css`white-space: nowrap; overflow: hidden; text-overflow: ellipsis;`}>{p.name}</div>
                 <div css={css`font-size: 12px; color: ${colours.muted};`}>
-                  {p.areaId ? wall.areas[p.areaId]?.name : "No room"} · {WHY[p.why]}
+                  {p.areaId ? wall.areas[p.areaId]?.name : words.noRoom} · {words.why[p.why]}
                 </div>
               </div>
               <select value={current(p)} disabled={busy === p.key} onChange={(e) => void choose(p, e.target.value)}
-                aria-label={`Home tab for ${p.name}`}
+                aria-label={words.homeFor(p.name)}
                 css={css`${buttonFont}; padding: 8px 10px; border-radius: 10px; color: ${colours.text}; background: #1a2142; border: 1px solid ${colours.edge};`}>
-                <option value="">Automatic</option>
-                {wall.tabs.map((t) => <option key={t.key} value={t.key}>{t.title}</option>)}
-                <option value={HIDDEN}>Hidden</option>
+                <option value="">{words.automatic}</option>
+                {wall.tabs.map((x) => <option key={x.key} value={x.key}>{tabTitle(x)}</option>)}
+                <option value={HIDDEN}>{words.hidden}</option>
               </select>
             </div>
           ))}

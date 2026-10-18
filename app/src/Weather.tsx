@@ -4,15 +4,10 @@ import { css } from "@emotion/react";
 import { Icon } from "@iconify/react";
 import { useWeather } from "@hakit/core";
 import { colours, glass, WEATHER_ICONS } from "./ui.tsx";
+import { t } from "./i18n.ts";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type Any = any;
-
-const CONDITION: Record<string, string> = {
-  "clear-night": "Clear", cloudy: "Cloudy", fog: "Fog", hail: "Hail", lightning: "Thunder", "lightning-rainy": "Thunder showers",
-  partlycloudy: "Partly cloudy", pouring: "Heavy rain", rainy: "Rain", snowy: "Snow", "snowy-rainy": "Sleet", sunny: "Sunny",
-  windy: "Windy", "windy-variant": "Windy", exceptional: "Warning",
-};
 
 export function WeatherPanel({ entityId, locale }: { entityId: string; locale: string }) {
   const w = useWeather(entityId as Any, { type: "daily" }) as Any;
@@ -31,7 +26,7 @@ export function WeatherPanel({ entityId, locale }: { entityId: string; locale: s
         <Icon icon={WEATHER_ICONS[w.state] ?? "mdi:weather-cloudy"} width={56} />
         <div>
           <div css={css`font-size: 44px; font-weight: 750; line-height: 1;`}>{a.temperature != null ? Math.round(a.temperature) : "-"}{unit}</div>
-          <div css={css`color: ${colours.muted}; margin-top: 4px;`}>{CONDITION[w.state] ?? w.state}</div>
+          <div css={css`color: ${colours.muted}; margin-top: 4px;`}>{t().condition[w.state] ?? w.state}</div>
         </div>
       </div>
       {days.length > 1 && (
@@ -46,7 +41,7 @@ export function WeatherPanel({ entityId, locale }: { entityId: string; locale: s
                 <div css={css`color: ${colours.muted};`}>{day.format(new Date(d.datetime))}</div>
                 <Icon icon={WEATHER_ICONS[d.condition ?? ""] ?? "mdi:weather-cloudy"} width={22} css={css`margin: 4px 0;`} />
                 <div css={css`font-weight: 650;`}>{Math.round(d.temperature)}°</div>
-                {d.templow != null && <div css={css`color: ${colours.faint};`}>{Math.round(d.templow)}°</div>}
+                {d.templow != null && <div css={css`color: ${colours.muted};`}>{Math.round(d.templow)}°</div>}
               </div>
             ))}
           </div>
